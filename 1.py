@@ -1,3 +1,5 @@
+!wget https://lazyprogrammer.me/course_files/nlp/tmdb_5000_movies.csv
+
 import pandas as pd
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
@@ -19,6 +21,7 @@ df = pd.read_csv(
     usecols=["title", "overview", "genres", "keywords", "tagline"],
 )
 df = df.dropna()
+df[["title", "overview", "tagline", "genres", "keywords"]]
 
 
 def genres_and_keywords_to_string(row):
@@ -33,7 +36,10 @@ def genres_and_keywords_to_string(row):
 
 
 df["genres_keywords_tagline"] = df.apply(genres_and_keywords_to_string, axis=1)
+df[["title", "overview", "genres_keywords_tagline"]]
+
 df["combined_text"] = df["overview"] + " " + df["genres_keywords_tagline"]
+df[["title", "combined_text"]]
 
 stop_words = set(stopwords.words("english"))
 lemmatizer = WordNetLemmatizer()
@@ -50,30 +56,32 @@ def clean_text(text):
 
 
 df["clean_combined_text"] = df["combined_text"].apply(clean_text)
+df[["title", "combined_text", "clean_combined_text"]]
 
 pretrained_w2v = api.load("word2vec-google-news-300")
 pretrained_glove = api.load("glove-wiki-gigaword-300")
 pretrained_fasttext = api.load("fasttext-wiki-news-subwords-300")
 
 
-def get_vector(text, model):
-    words = text.split()
-    word_vecs = [model[word] for word in words if word in model]
-    return np.mean(word_vecs, axis=0) if word_vecs else np.zeros(300)
+def calculate_sentence_vector(sentence, model):
+    words = [word for word in sentence.split() if word in model]
+    if not words:
+        return np.zeros(model.vector_size)
+    return np.mean([model[word] for word in words], axis=0)
 
 
 df["word2vec_vector"] = df["clean_combined_text"].apply(
-    lambda text: get_vector(text, pretrained_w2v)
+    lambda x: calculate_sentence_vector(x, pretrained_w2v)
 )
 df["glove_vector"] = df["clean_combined_text"].apply(
-    lambda text: get_vector(text, pretrained_glove)
+    lambda x: calculate_sentence_vector(x, pretrained_glove)
 )
 df["fasttext_vector"] = df["clean_combined_text"].apply(
-    lambda text: get_vector(text, pretrained_fasttext)
+    lambda x: calculate_sentence_vector(x, pretrained_fasttext)
 )
 
-tfidf_vectorizer = TfidfVectorizer(max_features=2000)
-tfidf_matrix = tfidf_vectorizer.fit_transform(df["clean_combined_text"])
+vectorizer = TfidfVectorizer()
+tfidf_matrix = vectorizer.fit_transform(df["clean_combined_text"])
 df["tfidf_vector"] = list(tfidf_matrix.toarray())
 
 
@@ -89,40 +97,18 @@ def plot_similarity_scores(title, vector_column, model_name):
     cosine_similarities = cosine_similarity(
         query_vec, np.vstack(df[vector_column].values)
     )
-    scores = cosine_similarities.flatten()
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(scores, label=model_name)
-    plt.title(f"Cosine Similarity Scores for {title} using {model_name}")
-    plt.xlabel("Movies")
-    plt.ylabel("Cosine Similarity Score")
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+    sim_scores = list(enumerate(cosine_similarities[0]))
+    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
 
-
-def plot_sorted_similarity_scores(title, vector_column, model_name):
-    indices = pd.Series(df.index, index=df["title"]).drop_duplicates()
-    idx = indices.get(title)
-
-    if idx is None:
-        print(f"Movie titled '{title}' not found.")
-        return
-
-    query_vec = df.loc[idx, vector_column].reshape(1, -1)
-    cosine_similarities = cosine_similarity(
-        query_vec, np.vstack(df[vector_column].values)
+    movie_indices = [i[0] for i in sim_scores[:6]]
+    plt.barh(
+        df.iloc[movie_indices]["title"],
+        [sim_scores[i][1] for i in range(6)],
+        color="skyblue",
     )
-    scores = cosine_similarities.flatten()
-    sorted_scores = scores[(-scores).argsort()]
-
-    plt.figure(figsize=(10, 6))
-    plt.plot(sorted_scores, label=f"Sorted {model_name} Similarity Scores")
-    plt.title(f"Cosine Similarity Scores for {title} (Sorted) using {model_name}")
-    plt.xlabel("Movies (Sorted by Similarity)")
-    plt.ylabel("Cosine Similarity Score")
-    plt.legend()
-    plt.grid(True)
+    plt.xlabel("Cosine Similarity")
+    plt.title(f"Top Similar Movies based on {model_name}")
     plt.show()
 
 
@@ -173,10 +159,5 @@ plot_similarity_scores(query_film, "word2vec_vector", "Word2Vec")
 plot_similarity_scores(query_film, "glove_vector", "GloVe")
 plot_similarity_scores(query_film, "fasttext_vector", "FastText")
 plot_similarity_scores(query_film, "tfidf_vector", "TF-IDF")
-
-plot_sorted_similarity_scores(query_film, "word2vec_vector", "Word2Vec")
-plot_sorted_similarity_scores(query_film, "glove_vector", "GloVe")
-plot_sorted_similarity_scores(query_film, "fasttext_vector", "FastText")
-plot_sorted_similarity_scores(query_film, "tfidf_vector", "TF-IDF")
 
 compare_recommendations(query_film)
