@@ -35,6 +35,7 @@ def genres_and_keywords_to_string(row):
 
 
 df["genres_keywords_tagline"] = df.apply(genres_and_keywords_to_string, axis=1)
+
 df["combined_text"] = df["overview"] + " " + df["genres_keywords_tagline"]
 
 stop_words = set(stopwords.words("english"))
@@ -58,17 +59,22 @@ pretrained_glove = api.load("glove-wiki-gigaword-300")
 pretrained_fasttext = api.load("fasttext-wiki-news-subwords-300")
 
 """
-burada mesela örnek olarak bir sorgunun vektörel değeri nasıl hesaplanır diye baktığımızda
+modelin nasıl işlediğini anlamaya çalıştım. ve anladığım kadarıyla kişisel yorumum şudur;
+burda mesela örnek olarak bir sorgunun vektörel değeri nasıl hesaplanır diye baktığımızda;
 öncelikle pretrained_w2v[word] ile Word2Vec modelinden kelimenin 300 boyutlu vektörü çekiliyor
-(bu vektör eğitilen modele göre değişiklik gösteriyor)
-çekilen vektör; modelin eğitildiği veri kümesi üzerinde, kelimenin diğer kelimelerle olan ilişkisini yansıtan sayısal bir temsildir
-Kelimenin bağlamı, yakınındaki diğer kelimelerden etkilenerek bu vektörle ifade ediliyor.
-yazdığımız get_vector fonksiyonu ise her kelimenin vektörünü modelden alıyor ve bu vektörlerin ortalamasını alarak 
+(bu vektörlerin değerleri ve uzunlukları eğitilen modele göre değişiklik gösteriyor)
+(kullandığımız modellerin üçünde de vektör boyutu 300 vektörle sınırlı)
+çekilen vektördeki sayılar; modelin eğitildiği veri kümesi üzerinde, kelimenin diğer kelimelerle olan ilişkisini yansıtani
+(makine için anlamlı olan) sayısal bir dil(daha uygun bir kelime bulamadım).
+model, eğitim sürecinde eğitildiği datasete göre, kelimenin bağlamı, kelimeye yakın diğer kelimelerden vs. etkilenerek bu sayısal değeri belirliyor.
+dolayısıyla aynı kelime için aynı modelden hep aynı vektörü alıyoruzç
+yazdığımız get_vector fonksiyonu ise her kelimenin vektörünü modelden alıyor ve bu vektörlerin ortalamasını alarak
 verdiğimiz text'in genel vektörünü oluşturuyor.
 o da şöyle ki; kelimeler tek tek vektör olarak modelden alınıp listeye ekleniyor,
-ve daha sonra bu liste içerisindeki tüm kelime vektörlerinin ortalaması alınarak nihai vektör (yani word2vec_vector) hesaplanıyor.
-kelime vektörlerinin modelde birbirine olan uzaklığı, Word2Vec'in eğitildiği süreçte öğrenilen anlamsal ilişkilerle belirlenmiştir.
-yani, modelden alınan her vektör aslında o kelimenin diğer kelimelere olan "anlamsal uzaklıklarını" içeren bir temsildir.
+ve daha sonra bu liste içerisindeki tüm kelime vektörlerinin ortalaması alınarak nihai vektör (mesela word2vec_vector) hesaplanıyor.
+kelime vektörlerinin modelde birbirine olan uzaklığı, Word2Vec'in eğitildiği süreçte öğrenilen anlamsal ilişkilerle makine tarafından belirlenmiş.
+yani, modelden alınan 300 vektörlük verideki her vektör aslında o kelimenin diğer kelimelere olan "anlamsal uzaklıklarını" içeren bilgisayarın anladığı dilde bir temsili dil.
+bu vektörlerin içerdikleri sayıların, insanlar için anlam ifade etmesi ve anlamlandırılmaları zor gözüküyor.
 """
 
 
@@ -141,7 +147,7 @@ def plot_sorted_similarity_scores(title, vector_column, model_name):
     scores = cosine_similarities.flatten()
     sorted_scores = scores[(-scores).argsort()]
 
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(5, 3))
     plt.plot(sorted_scores, label=f"Sorted {model_name} Similarity Scores")
     plt.title(f"Cosine Similarity Scores for {title} (Sorted) using {model_name}")
     plt.xlabel("Movies (Sorted by Similarity)")
