@@ -57,6 +57,20 @@ pretrained_w2v = api.load("word2vec-google-news-300")
 pretrained_glove = api.load("glove-wiki-gigaword-300")
 pretrained_fasttext = api.load("fasttext-wiki-news-subwords-300")
 
+"""
+burada mesela örnek olarak bir sorgunun vektörel değeri nasıl hesaplanır diye baktığımızda
+öncelikle pretrained_w2v[word] ile Word2Vec modelinden kelimenin 300 boyutlu vektörü çekiliyor
+(bu vektör eğitilen modele göre değişiklik gösteriyor)
+çekilen vektör; modelin eğitildiği veri kümesi üzerinde, kelimenin diğer kelimelerle olan ilişkisini yansıtan sayısal bir temsildir
+Kelimenin bağlamı, yakınındaki diğer kelimelerden etkilenerek bu vektörle ifade ediliyor.
+yazdığımız get_vector fonksiyonu ise her kelimenin vektörünü modelden alıyor ve bu vektörlerin ortalamasını alarak 
+verdiğimiz text'in genel vektörünü oluşturuyor.
+o da şöyle ki; kelimeler tek tek vektör olarak modelden alınıp listeye ekleniyor,
+ve daha sonra bu liste içerisindeki tüm kelime vektörlerinin ortalaması alınarak nihai vektör (yani word2vec_vector) hesaplanıyor.
+kelime vektörlerinin modelde birbirine olan uzaklığı, Word2Vec'in eğitildiği süreçte öğrenilen anlamsal ilişkilerle belirlenmiştir.
+yani, modelden alınan her vektör aslında o kelimenin diğer kelimelere olan "anlamsal uzaklıklarını" içeren bir temsildir.
+"""
+
 
 def get_vector(text, model):
     words = text.split()
@@ -77,6 +91,9 @@ df["fasttext_vector"] = df["clean_combined_text"].apply(
 tfidf_vectorizer = TfidfVectorizer(max_features=2000)
 tfidf_matrix = tfidf_vectorizer.fit_transform(df["clean_combined_text"])
 df["tfidf_vector"] = list(tfidf_matrix.toarray())
+
+
+query_film = "The Matrix"
 
 
 def plot_similarity_scores(title, vector_column, model_name):
@@ -101,6 +118,12 @@ def plot_similarity_scores(title, vector_column, model_name):
     plt.legend()
     plt.grid(True)
     plt.show()
+
+
+plot_similarity_scores(query_film, "word2vec_vector", "Word2Vec")
+plot_similarity_scores(query_film, "glove_vector", "GloVe")
+plot_similarity_scores(query_film, "fasttext_vector", "FastText")
+plot_similarity_scores(query_film, "tfidf_vector", "TF-IDF")
 
 
 def plot_sorted_similarity_scores(title, vector_column, model_name):
@@ -128,25 +151,10 @@ def plot_sorted_similarity_scores(title, vector_column, model_name):
     plt.show()
 
 
-def get_recommendations(title, vector_column):
-    indices = pd.Series(df.index, index=df["title"]).drop_duplicates()
-    idx = indices.get(title)
-
-    if idx is None:
-        return f"Movie titled '{title}' not found."
-
-    query_vec = df.loc[idx, vector_column].reshape(1, -1)
-    cosine_similarities = cosine_similarity(
-        query_vec, np.vstack(df[vector_column].values)
-    )
-
-    sim_scores = list(enumerate(cosine_similarities[0]))
-    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)[1:6]
-
-    movie_indices = [i[0] for i in sim_scores]
-    recommended_movies = df.iloc[movie_indices]["title"]
-
-    return recommended_movies, sim_scores
+plot_sorted_similarity_scores(query_film, "word2vec_vector", "Word2Vec")
+plot_sorted_similarity_scores(query_film, "glove_vector", "GloVe")
+plot_sorted_similarity_scores(query_film, "fasttext_vector", "FastText")
+plot_sorted_similarity_scores(query_film, "tfidf_vector", "TF-IDF")
 
 
 def compare_recommendations(title):
@@ -169,16 +177,25 @@ def compare_recommendations(title):
             print(f"{i}. {movie} - Score: {score[1]:.4f}")
 
 
-query_film = "The Matrix"
+def get_recommendations(title, vector_column):
+    indices = pd.Series(df.index, index=df["title"]).drop_duplicates()
+    idx = indices.get(title)
 
-plot_similarity_scores(query_film, "word2vec_vector", "Word2Vec")
-plot_similarity_scores(query_film, "glove_vector", "GloVe")
-plot_similarity_scores(query_film, "fasttext_vector", "FastText")
-plot_similarity_scores(query_film, "tfidf_vector", "TF-IDF")
+    if idx is None:
+        return f"Movie titled '{title}' not found."
 
-plot_sorted_similarity_scores(query_film, "word2vec_vector", "Word2Vec")
-plot_sorted_similarity_scores(query_film, "glove_vector", "GloVe")
-plot_sorted_similarity_scores(query_film, "fasttext_vector", "FastText")
-plot_sorted_similarity_scores(query_film, "tfidf_vector", "TF-IDF")
+    query_vec = df.loc[idx, vector_column].reshape(1, -1)
+    cosine_similarities = cosine_similarity(
+        query_vec, np.vstack(df[vector_column].values)
+    )
+
+    sim_scores = list(enumerate(cosine_similarities[0]))
+    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)[1:6]
+
+    movie_indices = [i[0] for i in sim_scores]
+    recommended_movies = df.iloc[movie_indices]["title"]
+
+    return recommended_movies, sim_scores
+
 
 compare_recommendations(query_film)
