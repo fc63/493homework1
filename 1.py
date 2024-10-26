@@ -59,18 +59,17 @@ pretrained_glove = api.load("glove-wiki-gigaword-300")
 pretrained_fasttext = api.load("fasttext-wiki-news-subwords-300")
 
 """
-modelin nasıl işlediğini anlamaya çalıştım. ve anladığım kadarıyla kişisel yorumum şudur;
-burda mesela örnek olarak bir sorgunun vektörel değeri nasıl hesaplanır diye baktığımızda;
+örnek olarak bir sorgunun vektörel değeri nasıl hesaplanır diye baktığımızda;
 öncelikle pretrained_w2v[word] ile Word2Vec modelinden kelimenin 300 boyutlu vektörü çekiliyor
 (bu vektörlerin değerleri ve uzunlukları eğitilen modele göre değişiklik gösteriyor)
-(kullandığımız modellerin üçünde de vektör boyutu 300 vektörle sınırlı)
-çekilen vektördeki sayılar; modelin eğitildiği veri kümesi üzerinde, kelimenin diğer kelimelerle olan ilişkisini yansıtani
+(modellerin üçünde de vektör boyutu 300 vektörle sınırlı)
+çekilen vektördeki sayılar; modelin eğitildiği veri kümesi üzerinde, kelimenin diğer kelimelerle olan ilişkisini yansıtan,
 (makine için anlamlı olan) sayısal bir dil(daha uygun bir kelime bulamadım).
 model, eğitim sürecinde eğitildiği datasete göre, kelimenin bağlamı, kelimeye yakın diğer kelimelerden vs. etkilenerek bu sayısal değeri belirliyor.
-dolayısıyla aynı kelime için aynı modelden hep aynı vektörü alıyoruzç
-yazdığımız get_vector fonksiyonu ise her kelimenin vektörünü modelden alıyor ve bu vektörlerin ortalamasını alarak
+dolayısıyla aynı kelime için aynı modelden hep aynı vektörü alıyoruz.
+yazdığım get_vector fonksiyonu ise her kelimenin vektörünü modelden alıyor ve bu vektörlerin ortalamasını alarak
 verdiğimiz text'in genel vektörünü oluşturuyor.
-o da şöyle ki; kelimeler tek tek vektör olarak modelden alınıp listeye ekleniyor,
+şöyle ki; kelimeler tek tek vektör olarak modelden alınıp listeye ekleniyor,
 ve daha sonra bu liste içerisindeki tüm kelime vektörlerinin ortalaması alınarak nihai vektör (mesela word2vec_vector) hesaplanıyor.
 kelime vektörlerinin modelde birbirine olan uzaklığı, Word2Vec'in eğitildiği süreçte öğrenilen anlamsal ilişkilerle makine tarafından belirlenmiş.
 yani, modelden alınan 300 vektörlük verideki her vektör aslında o kelimenin diğer kelimelere olan "anlamsal uzaklıklarını" içeren bilgisayarın anladığı dilde bir temsili dil.
